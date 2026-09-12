@@ -1,6 +1,6 @@
 # browserprint-relay
 
-Relay TCP com ícone na bandeja do Windows. Ele escuta em `0.0.0.0:9100`
+Relay TCP com ícone na bandeja do Windows. Ele escuta em `0.0.0.0:19100`
 (todas as interfaces de rede) e repassa cada conexão pro Browser Print
 de verdade, que continua rodando só em `127.0.0.1:9100`.
 
@@ -9,9 +9,34 @@ de verdade, que continua rodando só em `127.0.0.1:9100`.
 - Não mexe no Browser Print. Só fica na frente dele, "escutando pela
   rede" e entregando pro processo local.
 
+Clientes de outras máquinas na rede apontam pro IP dessa máquina na
+porta **19100** (não 9100) — ver "Por que portas diferentes" abaixo.
+
 Confirme antes de instalar: a porta padrão do Browser Print pode variar
 conforme a versão/instalação (normalmente 9100). Se for diferente,
-troque `LISTEN_PORT` em `src/main.rs`.
+troque `BROWSER_PRINT_PORT` em `src/main.rs`. Pra trocar a porta que o
+relay expõe pra rede, troque `RELAY_PORT`.
+
+## Por que portas diferentes (19100 -> 9100), não a mesma
+
+A primeira versão deste relay escutava em `0.0.0.0:9100`, a mesma
+porta do Browser Print — em teoria endereços diferentes (`0.0.0.0` vs
+`127.0.0.1`) convivem no mesmo número de porta sem conflito. **Isso
+vale no Linux, mas não necessariamente no Windows.**
+
+Se o processo que já tem a porta aberta (o Browser Print, nesse caso)
+usou a flag `SO_EXCLUSIVEADDRUSE` no bind dele — comum em serviços
+Windows bem-comportados, pra evitar que outro processo sequestre a
+porta — **nenhum outro processo consegue bindar aquele número de
+porta, nem em endereço diferente**. O bind falha com "acesso negado"
+(`WSAEACCES`, erro do Windows `10013`), mesmo sem nenhum conflito de
+verdade — diferente do erro "porta já em uso" (`10048`) que seria de
+esperar.
+
+Foi exatamente esse erro 10013 que apareceu na prática. Por isso o
+relay usa uma porta própria (19100) pra escutar, e só usa a 9100 como
+destino de pra onde repassar — evita a ambiguidade de vez, em vez de
+depender de um comportamento que muda entre sistemas operacionais.
 
 ## Build nativo (numa máquina Windows)
 
@@ -63,7 +88,7 @@ perguntar se libera o app na rede (marcar rede privada, não pública).
 Se não perguntar, liberar manualmente:
 
 ```
-netsh advfirewall firewall add rule name="Browser Print Relay" dir=in action=allow protocol=TCP localport=9100
+netsh advfirewall firewall add rule name="Browser Print Relay" dir=in action=allow protocol=TCP localport=19100
 ```
 
 (precisa rodar como administrador — não incluí isso no app porque
@@ -76,4 +101,4 @@ Só executar o `.exe`. Ele sobe minimizado na bandeja — sem janela. Menu
 de contexto no ícone mostra o status e tem "Sair".
 
 Clientes de outras máquinas na rede então apontam pro IP dessa máquina
-na porta 9100, igual apontariam pro Browser Print local.
+na porta 19100.

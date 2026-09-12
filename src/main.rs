@@ -11,7 +11,17 @@ use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tray_icon::TrayIconBuilder;
 
-const LISTEN_PORT: u16 = 9100;
+// Porta que o relay escuta pra rede. Não pode ser a mesma do Browser Print
+// (9100): no Windows, se o Browser Print já tiver aberto a porta com a
+// flag SO_EXCLUSIVEADDRUSE (comum em serviços), nenhum outro processo
+// consegue bindar aquele número de porta, nem em endereço diferente --
+// o bind falha com "acesso negado" (WSAEACCES / erro 10013), mesmo sem
+// nenhum conflito de verdade. No Linux isso não acontece (endereços
+// diferentes no mesmo número de porta convivem sem problema), mas o app
+// é pra rodar no Windows, então evitamos a situação de vez usando uma
+// porta própria.
+const RELAY_PORT: u16 = 19100;
+const BROWSER_PRINT_PORT: u16 = 9100;
 
 #[derive(Debug, Clone)]
 enum AppEvent {
@@ -44,9 +54,9 @@ fn main() -> anyhow::Result<()> {
     // a thread principal fica livre pra bombear o loop de eventos da tray
     // (exigência do Win32: a mensagem da bandeja tem que rodar na UI thread).
     thread::spawn(move || {
-        let target: SocketAddr = ([127, 0, 0, 1], LISTEN_PORT).into();
+        let target: SocketAddr = ([127, 0, 0, 1], BROWSER_PRINT_PORT).into();
         let rt = tokio::runtime::Runtime::new().expect("falha ao criar runtime tokio");
-        rt.block_on(proxy::run(LISTEN_PORT, target, move |status| {
+        rt.block_on(proxy::run(RELAY_PORT, target, move |status| {
             let _ = event_proxy.send_event(AppEvent::Status(status));
         }));
     });
@@ -67,9 +77,9 @@ fn main() -> anyhow::Result<()> {
                 proxy::Status::Listening(port) => {
                     let _ = tray.set_icon(Some(icon_ok.clone()));
                     let _ = tray.set_tooltip(Some(format!(
-                        "Zebra Browser Print Relay — ouvindo em 0.0.0.0:{port}, repassando pra 127.0.0.1:{port}"
+                        "Zebra Browser Print Relay — ouvindo em 0.0.0.0:{port}, repassando pra 127.0.0.1:{BROWSER_PRINT_PORT}"
                     )));
-                    status_item.set_text(format!("Rodando — porta {port}"));
+                    status_item.set_text(format!("Rodando — porta {port} -> {BROWSER_PRINT_PORT}"));
                 }
                 proxy::Status::Error(msg) => {
                     let _ = tray.set_icon(Some(icon_err.clone()));
