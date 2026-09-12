@@ -1,0 +1,22 @@
+[package]
+name = "browserprint-relay"
+version = "0.1.0"
+edition = "2021"
+description = "Relay de rede pro Zebra Browser Print (que só escuta em localhost), com ícone de status na bandeja do Windows."
+license = "MIT"
+
+[[bin]]
+name = "browserprint-relay"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros"] }
+tray-icon = "0.25"
+tao = "0.37"
+anyhow = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+panic = "abort"
