@@ -12,11 +12,17 @@ estar com erro sem afetar o outro. Como o relay só repassa bytes brutos
 atravessa opaco, criptografado de ponta a ponta entre o cliente remoto
 e o Browser Print — o relay nunca descriptografa nada.
 
-- Ícone verde = os dois protocolos no ar, repassando.
-- Ícone vermelho = pelo menos um dos dois com erro (ex.: porta já em
-  uso) — ver texto de cada um no menu.
-- Não mexe no Browser Print. Só fica na frente dele, "escutando pela
-  rede" e entregando pro processo local.
+O ícone da bandeja é dividido ao meio — metade esquerda representa o
+HTTP, metade direita o HTTPS — pra mostrar o estado dos dois protocolos
+sem precisar abrir o menu:
+
+- Verde inteiro = os dois no ar, repassando.
+- Vermelho inteiro = os dois com erro.
+- Metade verde, metade vermelho = só um dos dois no ar (o lado verde
+  diz qual). Detalhe do erro fica no menu, no item daquele protocolo.
+
+Não mexe no Browser Print. Só fica na frente dele, "escutando pela
+rede" e entregando pro processo local.
 
 Clientes de outras máquinas na rede apontam pro IP dessa máquina nas
 portas **19100** (HTTP) e **19101** (HTTPS) por padrão — não 9100/9101,

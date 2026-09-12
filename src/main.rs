@@ -101,12 +101,18 @@ fn main() -> anyhow::Result<()> {
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&quit_item)?;
 
-    let icon_ok = icon::make_icon(icon::Color::Green)?;
-    let icon_err = icon::make_icon(icon::Color::Red)?;
+    // Ícone dividido ao meio: metade esquerda = HTTP, metade direita =
+    // HTTPS. Os quatro estados possíveis (ok/ok, erro/erro, e os dois
+    // parciais) ficam visíveis no próprio ícone da bandeja, sem precisar
+    // abrir o menu pra saber qual dos dois está com problema.
+    let icon_ambos_ok = icon::make_icon(icon::Color::Green)?;
+    let icon_ambos_erro = icon::make_icon(icon::Color::Red)?;
+    let icon_so_http_ok = icon::make_icon_dividido(icon::Color::Green, icon::Color::Red)?;
+    let icon_so_https_ok = icon::make_icon_dividido(icon::Color::Red, icon::Color::Green)?;
 
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
-        .with_icon(icon_ok.clone())
+        .with_icon(icon_ambos_erro.clone())
         .with_tooltip("Zebra Browser Print Relay — iniciando…")
         .build()?;
 
@@ -223,17 +229,32 @@ fn main() -> anyhow::Result<()> {
                 },
             }
 
-            if ok_http && ok_https {
-                let _ = tray.set_icon(Some(icon_ok.clone()));
-                let _ = tray.set_tooltip(Some(format!(
-                    "Browser Print Relay — HTTP :{porta_http_atual}->{BROWSER_PRINT_HTTP_PORT}, HTTPS :{porta_https_atual}->{BROWSER_PRINT_HTTPS_PORT}"
-                )));
-            } else {
-                let _ = tray.set_icon(Some(icon_err.clone()));
-                let _ = tray.set_tooltip(Some(
-                    "Browser Print Relay — erro em pelo menos um protocolo (ver menu)".to_string(),
-                ));
-            }
+            let (icone, tooltip) = match (ok_http, ok_https) {
+                (true, true) => (
+                    &icon_ambos_ok,
+                    format!(
+                        "Browser Print Relay — HTTP :{porta_http_atual}->{BROWSER_PRINT_HTTP_PORT}, HTTPS :{porta_https_atual}->{BROWSER_PRINT_HTTPS_PORT}"
+                    ),
+                ),
+                (true, false) => (
+                    &icon_so_http_ok,
+                    format!(
+                        "Browser Print Relay — HTTP ok (:{porta_http_atual}->{BROWSER_PRINT_HTTP_PORT}), HTTPS com erro (ver menu)"
+                    ),
+                ),
+                (false, true) => (
+                    &icon_so_https_ok,
+                    format!(
+                        "Browser Print Relay — HTTPS ok (:{porta_https_atual}->{BROWSER_PRINT_HTTPS_PORT}), HTTP com erro (ver menu)"
+                    ),
+                ),
+                (false, false) => (
+                    &icon_ambos_erro,
+                    "Browser Print Relay — HTTP e HTTPS com erro (ver menu)".to_string(),
+                ),
+            };
+            let _ = tray.set_icon(Some(icone.clone()));
+            let _ = tray.set_tooltip(Some(tooltip));
         }
     });
 }
