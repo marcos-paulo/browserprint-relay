@@ -10,10 +10,14 @@ name = "browserprint-relay"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "sync"] }
 tray-icon = "0.25"
 tao = "0.37"
 anyhow = "1"
+arboard = "3"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
 
 [profile.release]
 opt-level = "z"
