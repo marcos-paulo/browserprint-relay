@@ -1,26 +1,37 @@
 # browserprint-relay
 
-Relay TCP com ícone na bandeja do Windows. Ele escuta em `0.0.0.0:19100`
-(todas as interfaces de rede) e repassa cada conexão pro Browser Print
-de verdade, que continua rodando só em `127.0.0.1:9100`.
+Relay TCP com ícone na bandeja do Windows. Ele escuta em duas portas
+próprias (`0.0.0.0:19100` e `0.0.0.0:19101`, todas as interfaces de
+rede) e repassa cada conexão pro Browser Print de verdade, que continua
+rodando só em `127.0.0.1:9100` (HTTP) e `127.0.0.1:9101` (HTTPS,
+certificado autoassinado).
 
-- Ícone verde = relay no ar, repassando.
-- Ícone vermelho = erro (ex: porta já em uso por outro processo).
+Os dois protocolos rodam em paralelo, de forma independente — um pode
+estar com erro sem afetar o outro. Como o relay só repassa bytes brutos
+(não entende HTTP nem TLS), o conteúdo trafegando não importa: HTTPS
+atravessa opaco, criptografado de ponta a ponta entre o cliente remoto
+e o Browser Print — o relay nunca descriptografa nada.
+
+- Ícone verde = os dois protocolos no ar, repassando.
+- Ícone vermelho = pelo menos um dos dois com erro (ex.: porta já em
+  uso) — ver texto de cada um no menu.
 - Não mexe no Browser Print. Só fica na frente dele, "escutando pela
   rede" e entregando pro processo local.
 
-Clientes de outras máquinas na rede apontam pro IP dessa máquina na
-porta **19100** por padrão (não 9100) — ver "Por que portas diferentes"
-abaixo. O menu da bandeja mostra o endereço exato pra usar, e tem opção
-de trocar a porta sem precisar mexer em código (ver "Rodar" abaixo).
+Clientes de outras máquinas na rede apontam pro IP dessa máquina nas
+portas **19100** (HTTP) e **19101** (HTTPS) por padrão — não 9100/9101,
+ver "Por que portas diferentes" abaixo. O menu da bandeja mostra os
+dois endereços exatos pra usar, e tem opção de trocar cada porta sem
+precisar mexer em código (ver "Rodar" abaixo).
 
-Confirme antes de instalar: a porta padrão do Browser Print pode variar
-conforme a versão/instalação (normalmente 9100). Se for diferente,
-troque `BROWSER_PRINT_PORT` em `src/main.rs` (essa aqui não tem opção
-no menu — é fixa em tempo de compilação, já que é a porta de outro
-programa, não do relay).
+Confirme antes de instalar: as portas padrão do Browser Print podem
+variar conforme a versão/instalação (normalmente 9100 HTTP / 9101
+HTTPS). Se forem diferentes, troque `BROWSER_PRINT_HTTP_PORT` e
+`BROWSER_PRINT_HTTPS_PORT` em `src/main.rs` (essas aqui não têm opção
+no menu — são fixas em tempo de compilação, já que são a porta de
+outro programa, não do relay).
 
-## Por que portas diferentes (19100 -> 9100), não a mesma
+## Por que portas diferentes (19100/19101 -> 9100/9101), não as mesmas
 
 A primeira versão deste relay tentava escutar em `0.0.0.0:9100` — a
 mesma porta do Browser Print. Deu erro "acesso negado" (`WSAEACCES`,
@@ -51,9 +62,10 @@ firewall. É exatamente esse bloqueio que o relay contorna: a conexão
 que ele abre com o Browser Print parte da própria máquina (localhost
 pro Browser Print), então nunca é vista como remota.
 
-De qualquer forma, o relay usa uma porta própria (19100) pra escutar, e
-só usa a 9100 como destino de pra onde repassar — evita depender de
-qual das duas explicações se aplica em cada máquina.
+De qualquer forma, o relay usa portas próprias (19100 pro HTTP, 19101
+pro HTTPS) pra escutar, e só usa a 9100/9101 como destino de pra onde
+repassar — evita depender de qual das duas explicações se aplica em
+cada máquina.
 
 ## Build nativo (numa máquina Windows)
 
@@ -106,7 +118,8 @@ perguntar se libera o app na rede (marcar rede privada, não pública).
 Se não perguntar, liberar manualmente:
 
 ```
-netsh advfirewall firewall add rule name="Browser Print Relay" dir=in action=allow protocol=TCP localport=19100
+netsh advfirewall firewall add rule name="Browser Print Relay HTTP" dir=in action=allow protocol=TCP localport=19100
+netsh advfirewall firewall add rule name="Browser Print Relay HTTPS" dir=in action=allow protocol=TCP localport=19101
 ```
 
 (precisa rodar como administrador — não incluí isso no app porque
@@ -116,25 +129,35 @@ silenciosa.)
 ## Rodar
 
 Só executar o `.exe`. Ele sobe minimizado na bandeja — sem janela. Menu
-de contexto no ícone mostra:
+de contexto no ícone mostra, pra HTTP e HTTPS separadamente:
 
 - **Status** — se está rodando e em qual porta, ou o erro (se houver).
+  Os dois protocolos são independentes: um pode estar rodando enquanto
+  o outro mostra erro.
 - **Endereço** — o IP:porta que o app que vai imprimir precisa
-  configurar (ex.: `192.168.0.42:19100`). Detectado sozinho (mesmo IP
-  que aparece no `ipconfig`, na interface da rota padrão).
-- **Copiar endereço** — copia esse IP:porta pra área de transferência,
-  pra colar direto na configuração de quem for usar.
+  configurar (ex.: `192.168.0.42:19100` HTTP, `192.168.0.42:19101`
+  HTTPS). Detectado sozinho (mesmo IP que aparece no `ipconfig`, na
+  interface da rota padrão).
 - **Trocar porta…** — abre uma caixa de diálogo pra digitar uma porta
-  nova. Aplica na hora (derruba o listener antigo, sobe um novo — não
-  precisa reiniciar o app) e já salva pra próxima vez que abrir.
+  nova (só daquele protocolo). Aplica na hora (derruba o listener
+  antigo, sobe um novo — não precisa reiniciar o app) e já salva pra
+  próxima vez que abrir. Recusa uma porta que seja 9100 ou 9101 (as do
+  próprio Browser Print).
+
+E, no fim do menu:
+
+- **Copiar endereços** — copia os dois IP:porta (HTTP e HTTPS) juntos
+  pra área de transferência, pra colar direto na configuração de quem
+  for usar.
 - **Sair**.
 
 Clientes de outras máquinas na rede apontam pro endereço mostrado no
-menu (IP dessa máquina + porta do relay — 19100 por padrão).
+menu — HTTP ou HTTPS, conforme o que o app de impressão pedir.
 
 ## Onde fica salva a porta escolhida
 
 No Registro do Windows, `HKEY_CURRENT_USER\Software\browserprint-relay`
-(valor `RelayPort`) — sem precisar de arquivo de configuração nem banco
-de dados. É por usuário: se outra conta do Windows logar na mesma
-máquina, começa com a porta padrão (19100) até trocar também.
+(valores `RelayPortHttp` e `RelayPortHttps`, um pra cada protocolo) —
+sem precisar de arquivo de configuração nem banco de dados. É por
+usuário: se outra conta do Windows logar na mesma máquina, começa com
+as portas padrão (19100/19101) até trocar também.
