@@ -2,6 +2,7 @@
 
 mod dialog;
 mod icon;
+mod instancia_unica;
 mod net_info;
 mod proxy;
 mod settings;
@@ -61,6 +62,12 @@ enum AppEvent {
 }
 
 fn main() -> anyhow::Result<()> {
+    // Já há um relay rodando nesta sessão: sai quieto, o ícone dele já está na
+    // bandeja.
+    if !instancia_unica::adquirir() {
+        return Ok(());
+    }
+
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let event_proxy_http = event_loop.create_proxy();
     let event_proxy_https = event_loop.create_proxy();

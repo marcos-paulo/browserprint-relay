@@ -7,6 +7,7 @@
 // Print, então o relay também precisa de duas portas próprias -- ver
 // main.rs).
 
+#[cfg(windows)]
 pub const CHAVE_REGISTRO: &str = r"Software\browserprint-relay";
 pub const VALOR_PORTA_HTTP: &str = "RelayPortHttp";
 pub const VALOR_PORTA_HTTPS: &str = "RelayPortHttps";
